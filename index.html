@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PouchCount">
+  <meta name="theme-color" content="#0a0f1a">
+  <link rel="manifest" href="manifest.json">
+  <title>PouchCount</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="noise"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <span class="logo">Snus Counter</span>
+      <div class="header-info">
+        <span class="header-date" id="header-date"></span>
+        <span class="header-streak" id="header-streak"></span>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="header-tab-label" id="header-tab-label">Heute</span>
+      <button class="hamburger" id="hamburger-btn" onclick="toggleMenu()" aria-label="Menü">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Dropdown Menu -->
+  <div class="dropdown-menu" id="dropdown-menu">
+    <button class="dropdown-item active" data-tab="today" onclick="selectMenu('today','Heute')">
+      <span class="dropdown-icon">◈</span> Heute
+    </button>
+    <button class="dropdown-item" data-tab="pouches" onclick="selectMenu('pouches','Sorten')">
+      <span class="dropdown-icon">◈</span> Sorten
+    </button>
+    <button class="dropdown-item" data-tab="stats" onclick="selectMenu('stats','Statistik')">
+      <span class="dropdown-icon">◈</span> Statistik
+    </button>
+    <div class="dropdown-divider"></div>
+    <button class="dropdown-item" onclick="openBackfill();toggleMenu()">
+      <span class="dropdown-icon">◈</span> Vergangenen Tag nachtragen
+    </button>
+    <button class="dropdown-item" onclick="openSmokeFreeEdit();toggleMenu()">
+      <span class="dropdown-icon">◈</span> Rauchfrei-Datum anpassen
+    </button>
+  </div>
+  <div class="menu-backdrop" id="menu-backdrop" onclick="toggleMenu()"></div>
+
+  <!-- TODAY TAB -->
+  <div class="tab-content active" id="tab-today">
+
+    <!-- Daily Progress Ring (doppelt: außen Pouches, innen Nikotin) -->
+    <section class="progress-section">
+      <div class="progress-ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 200 200">
+          <!-- Äußerer Ring: Pouches -->
+          <circle class="ring-bg"       cx="100" cy="100" r="87"/>
+          <circle class="ring-fill"     id="ring-fill"    cx="100" cy="100" r="87"/>
+          <!-- Innerer Ring: Nikotin -->
+          <circle class="ring-bg-inner" cx="100" cy="100" r="71"/>
+          <circle class="ring-fill-inner" id="ring-fill-inner" cx="100" cy="100" r="71"/>
+        </svg>
+        <div class="ring-center">
+          <span class="ring-count" id="today-count">0</span>
+          <span class="ring-label">von <span id="ring-limit">10</span></span>
+          <span class="ring-unit">Pouches</span>
+          <span class="ring-nic-val" id="ring-nic-val">0 mg</span>
+          <span class="ring-nic-limit">von <span id="ring-nic-limit">100</span> mg</span>
+        </div>
+      </div>
+
+      <!-- Zwei Limit-Zeilen -->
+      <div class="limit-controls">
+        <div class="limit-control">
+          <span class="limit-dot" style="background:var(--accent)"></span>
+          <span class="limit-label">Pouch-Limit</span>
+          <div class="limit-stepper">
+            <button class="stepper-btn" onclick="changeDayLimit(-1)">−</button>
+            <span class="stepper-val" id="limit-display">10</span>
+            <button class="stepper-btn" onclick="changeDayLimit(1)">+</button>
+          </div>
+        </div>
+        <div class="limit-control">
+          <span class="limit-dot" style="background:var(--warn)"></span>
+          <span class="limit-label">Nikotin-Limit</span>
+          <div class="limit-stepper">
+            <button class="stepper-btn" onclick="changeNicLimit(-10)">−</button>
+            <span class="stepper-val" id="nic-limit-display">100</span>
+            <button class="stepper-btn" onclick="changeNicLimit(10)">+</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Timer -->
+    <section class="timer-section">
+      <div class="timer-label">letzte Pouch vor</div>
+      <div class="timer-display" id="timer-display">–</div>
+      <div class="timer-nicotine" id="timer-nicotine"></div>
+    </section>
+
+    <!-- Today log -->
+    <section class="log-section">
+      <h3 class="section-title">Heutige Einnahmen</h3>
+      <div class="log-list" id="today-log">
+        <div class="log-empty">Noch keine Einträge heute</div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- POUCHES TAB -->
+  <div class="tab-content" id="tab-pouches">
+    <section class="pouches-section">
+      <div class="pouches-header">
+        <h2 class="section-title">Meine Sorten</h2>
+        <button class="add-btn" onclick="openAddPouch()">+ Sorte</button>
+      </div>
+      <div class="pouches-grid" id="pouches-grid">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+  </div>
+
+  <!-- STATS TAB -->
+  <div class="tab-content" id="tab-stats">
+    <section class="stats-section">
+      <h2 class="section-title">Statistik</h2>
+
+      <div class="stats-grid">
+        <div class="stat-card accent">
+          <span class="stat-val" id="stat-avg-pouches">0</span>
+          <span class="stat-key">Ø Pouches / Tag</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" id="stat-avg-nic">0 mg</span>
+          <span class="stat-key">Ø Nikotin / Tag</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" id="stat-total">0</span>
+          <span class="stat-key">Pouches gesamt</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" id="stat-days">0</span>
+          <span class="stat-key">Tage getrackt</span>
+        </div>
+        <div class="stat-card wide">
+          <span class="stat-val" id="stat-smoke-free">0 Tage</span>
+          <span class="stat-key">Rauchfrei seit</span>
+        </div>
+        <div class="stat-card wide">
+          <span class="stat-val" id="stat-best-day">–</span>
+          <span class="stat-key">Bester Tag (wenigste Pouches)</span>
+        </div>
+      </div>
+
+      <h3 class="section-title" style="margin-top:2rem">Letzte 7 Tage</h3>
+      <div class="bar-chart" id="bar-chart"></div>
+
+      <h3 class="section-title" style="margin-top:2rem">Nikotin-Verlauf</h3>
+      <div class="bar-chart nic-chart" id="nic-chart"></div>
+
+      <div class="smoke-free-banner" id="smoke-free-banner">
+        <span class="sf-icon">🚭</span>
+        <div>
+          <div class="sf-title">Du bist rauchfrei!</div>
+          <div class="sf-sub" id="sf-sub"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- FAB - Quick Add -->
+  <button class="fab" id="fab" onclick="openQuickAdd()" title="Schnell hinzufügen">+</button>
+
+  <!-- MODAL: Quick Add -->
+  <div class="modal-overlay" id="modal-quick" onclick="if(event.target===this)closeQuickAdd()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Pouch hinzufügen</h3>
+        <button class="modal-close" onclick="closeQuickAdd()">×</button>
+      </div>
+      <div class="pouch-picker" id="pouch-picker">
+        <!-- Injected by JS -->
+      </div>
+      <p class="modal-hint">Wähle eine Sorte — wird direkt zum Tageszähler addiert</p>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Pouch Type -->
+  <div class="modal-overlay" id="modal-add-pouch" onclick="if(event.target===this)closeAddPouch()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Neue Sorte</h3>
+        <button class="modal-close" onclick="closeAddPouch()">×</button>
+      </div>
+      <form class="pouch-form" onsubmit="savePouch(event)">
+        <label>
+          <span>Name</span>
+          <input type="text" id="p-name" placeholder="z.B. Velo Freeze" required>
+        </label>
+        <label>
+          <span>Nikotin (mg pro Pouch)</span>
+          <input type="number" id="p-nic" placeholder="z.B. 10" step="0.5" min="0" required>
+        </label>
+        <label>
+          <span>Stärke / Farbe</span>
+          <div class="color-picker" id="color-picker">
+            <button type="button" class="color-dot active" data-color="#3b82f6" style="background:#3b82f6" onclick="selectColor(this)"></button>
+            <button type="button" class="color-dot" data-color="#10b981" style="background:#10b981" onclick="selectColor(this)"></button>
+            <button type="button" class="color-dot" data-color="#f59e0b" style="background:#f59e0b" onclick="selectColor(this)"></button>
+            <button type="button" class="color-dot" data-color="#ef4444" style="background:#ef4444" onclick="selectColor(this)"></button>
+            <button type="button" class="color-dot" data-color="#8b5cf6" style="background:#8b5cf6" onclick="selectColor(this)"></button>
+            <button type="button" class="color-dot" data-color="#ec4899" style="background:#ec4899" onclick="selectColor(this)"></button>
+            <button type="button" class="color-dot" data-color="#14b8a6" style="background:#14b8a6" onclick="selectColor(this)"></button>
+            <button type="button" class="color-dot" data-color="#f97316" style="background:#f97316" onclick="selectColor(this)"></button>
+          </div>
+        </label>
+        <div class="form-row">
+          <button type="button" class="btn-ghost" onclick="closeAddPouch()">Abbrechen</button>
+          <button type="submit" class="btn-primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirm delete -->
+  <div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)closeConfirm()">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3>Sorte löschen?</h3>
+        <button class="modal-close" onclick="closeConfirm()">×</button>
+      </div>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="form-row">
+        <button class="btn-ghost" onclick="closeConfirm()">Abbrechen</button>
+        <button class="btn-danger" onclick="confirmDelete()">Löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Backfill -->
+  <div class="modal-overlay" id="modal-backfill" onclick="if(event.target===this)closeBackfill()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Tag nachtragen</h3>
+        <button class="modal-close" onclick="closeBackfill()">×</button>
+      </div>
+      <form class="pouch-form" onsubmit="saveBackfill(event)">
+        <label>
+          <span>Datum</span>
+          <input type="date" id="bf-date" required>
+        </label>
+        <label>
+          <span>Sorte</span>
+          <select id="bf-pouch" required></select>
+        </label>
+        <label>
+          <span>Anzahl Pouches</span>
+          <input type="number" id="bf-count" placeholder="z.B. 8" min="1" max="99" required>
+        </label>
+        <p class="modal-hint" style="margin-top:0;text-align:left">Eintraege werden gleichmaessig ueber den Tag verteilt und fliessen in die Statistik ein.</p>
+        <div class="form-row">
+          <button type="button" class="btn-ghost" onclick="closeBackfill()">Abbrechen</button>
+          <button type="submit" class="btn-primary">Eintragen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Rauchfrei-Datum bearbeiten -->
+  <div class="modal-overlay" id="modal-smokefree" onclick="if(event.target===this)closeSmokeFreeEdit()">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3>Rauchfrei seit</h3>
+        <button class="modal-close" onclick="closeSmokeFreeEdit()">×</button>
+      </div>
+      <form class="pouch-form" onsubmit="saveSmokeFreeDate(event)">
+        <label>
+          <span>Datum (wann hast du aufgehört?)</span>
+          <input type="date" id="sf-date-input" required>
+        </label>
+        <p class="modal-hint" style="margin-top:0;text-align:left">Du kannst auch ein Datum in der Vergangenheit eingeben, wenn du schon früher aufgehört hast.</p>
+        <div class="form-row">
+          <button type="button" class="btn-ghost" onclick="closeSmokeFreeEdit()">Abbrechen</button>
+          <button type="submit" class="btn-primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

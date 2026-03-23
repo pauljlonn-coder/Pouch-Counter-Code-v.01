@@ -1,0 +1,1113 @@
+/* ─── Reset & Base ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/*
+  ╔══════════════════════════════════════════════════════╗
+  ║  🎨 DESIGN-VARIABLEN — hier kannst du alles ändern  ║
+  ║  Diese Zeilen steuern das gesamte Erscheinungsbild.  ║
+  ╚══════════════════════════════════════════════════════╝
+
+  FARBEN:
+  --bg        → Haupthintergrund (der dunkelste Bereich)
+  --bg2       → Karten-Hintergrund (leicht heller)
+  --bg3       → Buttons, Inputs (noch etwas heller)
+  --accent    → Hauptfarbe für Ring, Buttons, Links → jetzt leicht Indigo statt reinem Blau
+  --accent2   → Hellere Version der Akzentfarbe (Timer-Zahl)
+  --success   → Grün für "Rauchfrei"-Banner
+  --warn      → Orange/Amber für Nikotin-Balken & Warnung
+  --danger    → Rot wenn Limit erreicht
+
+  SCHRIFTEN:
+  --font-display → Überschriften & Buttons
+  --font-mono    → Zahlen, Zeiten, Statistiken
+
+  ABSTÄNDE:
+  --radius    → Ecken-Rundung groß (Karten)
+  --radius-sm → Ecken-Rundung klein (Buttons, Inputs)
+*/
+:root {
+  /* Hintergründe — leicht wärmer als vorher (mehr Navy, weniger Pitch-Black) */
+  --bg:        #070d1a;   /* ← ändern für anderen Haupthintergrund  */
+  --bg2:       #0d1628;   /* ← ändern für Karten-Farbe              */
+  --bg3:       #14203a;   /* ← ändern für Button/Input-Hintergrund  */
+
+  /* Rahmen */
+  --border:    rgba(255,255,255,0.06);
+  --border2:   rgba(255,255,255,0.11);
+  --border3:   rgba(255,255,255,0.18);  /* aktive Elemente */
+
+  /* Text */
+  --text:      #dfe4f0;   /* ← Haupttextfarbe                       */
+  --text2:     #6b778f;   /* ← gedämpfter Text (Labels etc.)        */
+  --text3:     #3d475e;   /* ← sehr gedämpft (Platzhalter etc.)     */
+
+  /* Akzentfarbe: jetzt etwas mehr Indigo-Blau statt reinem Cyan-Blau */
+  --accent:    #5b8fff;   /* ← HIER die Hauptfarbe ändern! z.B. #22c55e für Grün */
+  --accent2:   #8fb4ff;   /* ← hellere Version davon                */
+  --accent-glow: rgba(91,143,255,0.35); /* ← Leucht-Effekt am Ring  */
+
+  /* Status-Farben */
+  --danger:    #f05252;
+  --success:   #34d399;   /* ← leicht kühler als vorher, wirkt eleganter */
+  --warn:      #f59e0b;
+
+  /* Form */
+  --radius:    18px;      /* ← Karten-Rundung (größere Zahl = runder) */
+  --radius-sm: 11px;      /* ← Button/Input-Rundung                   */
+  --radius-xs: 7px;
+
+  /* Schriften */
+  --font-display: 'Syne', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+}
+
+html { font-size: 16px; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-display);
+  min-height: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  padding-bottom: 110px;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ─── Noise Texture (sehr feines Film-Korn) ─────────── */
+/* opacity: 0.03 = kaum sichtbar. Erhöhen für mehr Textur, 0 zum Deaktivieren */
+.noise {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Dezenter Gradient-Akzent oben im Hintergrund */
+body::before {
+  content: '';
+  position: fixed;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(91,143,255,0.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Header ────────────────────────────────────────── */
+/*
+  padding: "oben rechts unten links" — z.B. 16px 20px 14px
+  ↑ erste Zahl erhöhen für mehr Abstand nach oben (wichtig bei iPhone-Notch)
+*/
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 14px;
+  background: rgba(7,13,26,0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Logo-Badge oben links */
+/* font-size ← Schriftgröße; padding ← Innenabstand; border-radius ← Rundung */
+.logo {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  background: rgba(91,143,255,0.1);
+  border: 1px solid rgba(91,143,255,0.22);
+  padding: 8px 5px;
+  border-radius: var(--radius-xs);
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+/* Datum im Header */
+/* font-size: 11px ← erhöhen für größere Schrift */
+.header-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+}
+
+/* "Rauchfrei"-Streak */
+.header-streak {
+  font-size: 11px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* ─── Hamburger Menu ────────────────────────────────── */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-tab-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+}
+
+/* Der Hamburger-Button (3 Balken) */
+/* width/height ← Größe des Buttons; border-radius ← Rundung */
+.hamburger {
+  width: 38px;
+  height: 38px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0;
+  transition: all 0.2s;
+}
+.hamburger:active { background: var(--accent); border-color: var(--accent); }
+.hamburger span {
+  display: block;
+  width: 17px;
+  height: 1.5px;       /* ← Dicke der Balken */
+  background: var(--text);
+  border-radius: 2px;
+  transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+/* Animation: Balken werden zum × wenn Menü offen */
+.hamburger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.hamburger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+.menu-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 98;
+}
+.menu-backdrop.open { display: block; }
+
+/* Dropdown-Menü */
+/* top: 64px ← Abstand von oben; right: 16px ← Abstand vom rechten Rand */
+.dropdown-menu {
+  position: fixed;
+  top: 64px;
+  right: 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border3);
+  border-radius: var(--radius);
+  padding: 7px;
+  min-width: 230px;
+  z-index: 99;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(91,143,255,0.05);
+}
+.dropdown-menu.open {
+  display: flex;
+  animation: dropIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Menü-Einträge */
+/* padding: ← Innenabstand (macht Einträge höher/niedriger) */
+.dropdown-item {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.15s;
+  width: 100%;
+}
+.dropdown-item:active { background: rgba(91,143,255,0.15); color: var(--accent2); }
+.dropdown-item.active {
+  background: rgba(91,143,255,0.1);
+  color: var(--accent2);
+}
+/* Kleines Bullet vor jedem Menüeintrag */
+.dropdown-icon { font-size: 8px; opacity: 0.4; }
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 5px 0;
+}
+
+/* ─── Select Input ───────────────────────────────────── */
+.pouch-form select {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  padding: 12px 14px;
+  outline: none;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;  
+  transition: border-color 0.15s;
+}
+.pouch-form select:focus { border-color: var(--accent); }
+
+/* ─── Tab Content ───────────────────────────────────── */
+.tab-content { display: none; padding: 22px 20px; }
+.tab-content.active { display: block; animation: fadeIn 0.22s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ─── Progress Ring ─────────────────────────────────── */
+.progress-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+/*
+  width/height ← Ringgröße
+  z.B. 200px für größer, 160px für kleiner
+*/
+.progress-ring-wrap {
+  position: relative;
+  width: 196px;
+  height: 196px;
+}
+
+.ring-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+/* Hintergrundkreis des Rings — stroke: Farbe, stroke-width: Dicke */
+.ring-bg {
+  fill: none;
+  stroke: var(--bg3);
+  stroke-width: 13;
+}
+
+/* Fortschrittskreis des Rings */
+/* stroke-width ← Dicke des Rings (z.B. 10 für dünner, 18 für dicker) */
+.ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 13;
+  stroke-linecap: round;
+  stroke-dasharray: 515;
+  stroke-dashoffset: 515;
+  transition: stroke-dashoffset 0.65s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.4s;
+  filter: drop-shadow(0 0 10px var(--accent-glow));
+}
+
+.ring-fill.warn   { stroke: var(--warn);   filter: drop-shadow(0 0 10px rgba(245,158,11,0.4)); }
+.ring-fill.danger { stroke: var(--danger); filter: drop-shadow(0 0 10px rgba(240,82,82,0.4)); }
+
+/* Innerer Ring (Nikotin) */
+.ring-bg-inner {
+  fill: none;
+  stroke: var(--bg3);
+  stroke-width: 13;
+}
+
+.ring-fill-inner {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 13;
+  stroke-linecap: round;
+  stroke-dasharray: 402;
+  stroke-dashoffset: 402;
+  transition: stroke-dashoffset 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 0 7px rgba(245,158,11,0.35));
+}
+.ring-fill-inner.warn { stroke: var(--danger); filter: drop-shadow(0 0 7px rgba(240,82,82,0.4)); }
+
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 15px;
+  gap: 0px;
+}
+
+/* Die große Zahl in der Mitte des Rings */
+/* font-size ← hier die Größe ändern */
+.ring-count {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -2px;
+}
+
+.ring-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 1px;
+}
+
+.ring-unit {
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-top: 1px;
+}
+
+/* Nikotin-Wert in der Mitte (unter den Pouches) */
+.ring-nic-val {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--warn);
+  margin-top: 5px;
+  line-height: 3,1;
+}
+
+.ring-nic-limit {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+/* ─── Limit Controls ────────────────────────────────── */
+.limit-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.limit-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  width: 100%;
+}
+
+/* Farbiger Punkt vor dem Label (blau=Pouches, amber=Nikotin) */
+.limit-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.limit-label {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.limit-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* + / – Buttons beim Tageslimit */
+/* width/height ← Größe; border-radius: 50% = rund */
+.stepper-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.stepper-btn:active { transform: scale(0.88); background: var(--accent); border-color: var(--accent); }
+
+/* Die Zahl zwischen + und – */
+.stepper-val {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  min-width: 30px;
+  text-align: center;
+}
+
+/* ─── Timer ─────────────────────────────────────────── */
+/*
+  Das ist die Karte mit der Stoppuhr.
+  padding ← Innenabstand (größer = luftiger)
+  border-radius ← über var(--radius) gesteuert
+*/
+.timer-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Der leuchtende Balken am oberen Rand der Timer-Karte */
+/* opacity: 0 zum Ausblenden; background-Farbe ändern für anderen Farbton */
+.timer-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.5;
+}
+
+/* Kleiner Text über der Zeit: "letzte Pouch vor" */
+.timer-label {
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+}
+
+/* Die große Zeitanzeige im Timer */
+/* font-size: 42px ← größer/kleiner; color: var(--accent2) ← Farbe ändern */
+.timer-display {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 400;
+  color: var(--accent2);
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+/* Sortenname & mg unter der Zeit */
+.timer-nicotine {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 8px;
+  letter-spacing: 0.03em;
+}
+
+/* ─── Section Title ─────────────────────────────────── */
+/* Kleine Überschriften wie "Heutige Einnahmen" */
+/* font-size, letter-spacing, color hier anpassen */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 12px;
+}
+
+/* ─── Log ───────────────────────────────────────────── */
+.log-section { margin-bottom: 24px; }
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.log-empty {
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+  padding: 28px;
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius-sm);
+}
+
+/* Eine Zeile im Tagesprotokoll */
+.log-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  animation: slideIn 0.22s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Farbiger Punkt vor dem Sortenname */
+/* width/height ← Größe des Punktes */
+.log-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.log-info { flex: 1; }
+
+.log-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.log-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 1px;
+}
+
+.log-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.log-del {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.log-del:hover { color: var(--danger); background: rgba(240,82,82,0.1); }
+
+/* ─── Pouches Tab ───────────────────────────────────── */
+.pouches-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Der "+ Sorte" Button */
+/* background ← Hintergrundfarbe; border-radius ← Rundung */
+.add-btn {
+  background: rgba(91,143,255,0.12);
+  color: var(--accent2);
+  border: 1px solid rgba(91,143,255,0.2);
+  border-radius: var(--radius-xs);
+  padding: 8px 14px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.add-btn:active { background: var(--accent); color: #fff; transform: scale(0.96); }
+
+.pouches-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Sorten-Karte */
+.pouch-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  transition: border-color 0.2s;
+}
+
+/* Farbiges Quadrat links auf der Sorte */
+/* width/height ← Größe; border-radius: 12px ← Rundung */
+.pouch-card-color {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pouch-card-info { flex: 1; min-width: 0; }
+
+.pouch-card-name {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pouch-card-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 3px;
+}
+
+.pouch-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Der + Button rechts auf der Sorte */
+/* width/height ← Größe; font-size ← Größe des + Zeichens */
+.pouch-add-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.pouch-add-btn:active { transform: scale(0.85); }
+
+.pouch-del-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 5px;
+  line-height: 1;
+  transition: color 0.15s;
+  border-radius: 6px;
+}
+.pouch-del-btn:hover { color: var(--danger); background: rgba(240,82,82,0.08); }
+
+.no-pouches {
+  text-align: center;
+  color: var(--text3);
+  font-size: 14px;
+  padding: 44px 20px;
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius);
+  line-height: 1.9;
+}
+
+/* ─── Stats Tab ─────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+/* Statistik-Karte */
+/* padding ← Innenabstand; gap ← Abstand zwischen Zahl und Label */
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Die akzentuierte Karte (Ø Pouches/Tag) */
+.stat-card.accent {
+  border-color: rgba(91,143,255,0.25);
+  background: rgba(91,143,255,0.07);
+}
+
+.stat-card.wide { grid-column: 1 / -1; }
+
+/* Die große Zahl in der Statistik-Karte */
+/* font-size: 28px ← hier Größe anpassen */
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1;
+}
+.stat-card.accent .stat-val { color: var(--accent2); }
+
+/* Beschriftung unter der Statistik-Zahl */
+.stat-key {
+  font-size: 10px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+}
+
+/* ─── Bar Charts ─────────────────────────────────────── */
+/* height: 110px ← Höhe des Diagramms */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  height: 110px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 14px 0;
+  margin-bottom: 12px;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+/* Die einzelnen Balken im Diagramm */
+/* background: var(--accent) ← Farbe der Pouches-Balken */
+.bar-bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+  min-height: 3px;
+  transition: height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0.6;
+}
+.bar-bar.today { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+
+/* Nikotin-Balken: background ← Farbe ändern */
+.bar-bar.nic { background: var(--warn); opacity: 0.6; }
+.bar-bar.nic.today { opacity: 1; box-shadow: 0 0 8px rgba(245,158,11,0.35); }
+
+.bar-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  padding-bottom: 7px;
+}
+
+/* Rauchfrei-Banner unten in der Statistik */
+.smoke-free-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(52,211,153,0.07);
+  border: 1px solid rgba(52,211,153,0.2);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 20px;
+}
+
+.sf-icon { font-size: 26px; }
+.sf-title { font-weight: 700; color: var(--success); font-size: 15px; }
+.sf-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text2); margin-top: 3px; line-height: 1.5; }
+
+/* ─── FAB (der große + Button) ───────────────────────── */
+/*
+  width/height ← Größe des Buttons (z.B. 60px für kleiner)
+  background   ← Farbe (z.B. var(--success) für Grün)
+  font-size    ← Größe des + Zeichens
+  box-shadow   ← der Leucht-Effekt darunter
+*/
+.fab {
+  position: fixed;
+  bottom: 30px;
+  right: 50%;
+  transform: translateX(50%);
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 28px var(--accent-glow), 0 0 0 1px rgba(91,143,255,0.2);
+  z-index: 50;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.fab:active { transform: translateX(50%) scale(0.88); }
+
+/* ─── Modals (Sheets von unten) ─────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 200;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay.open {
+  display: flex;
+  animation: overlayIn 0.18s ease;
+}
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Das Modal-Fenster selbst */
+/* padding ← Innenabstand; border-radius ← obere Rundung */
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border3);
+  border-radius: 22px 22px 0 0;
+  padding: 26px 20px 44px;
+  width: 100%;
+  max-width: 430px;
+  animation: sheetUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-sm { border-radius: 22px; margin: 20px; width: auto; max-width: 390px; }
+
+@keyframes sheetUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.modal-header h3 { font-size: 18px; font-weight: 700; }
+
+/* Das × zum Schließen */
+.modal-close {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.15s;
+}
+.modal-close:active { background: var(--danger); color: #fff; }
+
+.modal-hint {
+  font-size: 12px;
+  color: var(--text3);
+  text-align: center;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
+/* ─── Pouch Picker (Schnell-Modal) ───────────────────── */
+.pouch-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 13px 15px;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+  text-align: left;
+}
+.picker-item:active { transform: scale(0.97); border-color: var(--accent); background: rgba(91,143,255,0.06); }
+
+.picker-dot {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  flex-shrink: 0;
+}
+
+.picker-info { flex: 1; }
+.picker-name { font-size: 15px; font-weight: 700; }
+.picker-nic { font-family: var(--font-mono); font-size: 12px; color: var(--text2); margin-top: 2px; }
+.picker-empty { text-align: center; color: var(--text3); font-size: 13px; padding: 20px; }
+
+/* ─── Form ──────────────────────────────────────────── */
+.pouch-form { display: flex; flex-direction: column; gap: 16px; }
+
+.pouch-form label { display: flex; flex-direction: column; gap: 7px; }
+
+/* Label-Text über Inputs */
+/* font-size ← Größe; letter-spacing ← Buchstabenabstand */
+.pouch-form label span {
+  font-size: 11px;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+/* Text- und Zahlen-Inputs */
+.pouch-form input[type="text"],
+.pouch-form input[type="number"],
+.pouch-form input[type="date"] {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  padding: 13px 15px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  appearance: none;  
+}
+.pouch-form input:focus { border-color: var(--accent); }
+
+/* Farbwähler-Punkte */
+.color-picker { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.color-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+}
+.color-dot.active { border-color: #fff; transform: scale(1.18); box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+
+.form-row { display: flex; gap: 10px; }
+
+/* Abbrechen-Button */
+.btn-ghost {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  border-radius: var(--radius-sm);
+  padding: 13px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+/* Bestätigen/Speichern-Button */
+/* background: var(--accent) ← Farbe; padding ← Größe */
+.btn-primary {
+  flex: 1;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 13px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-primary:active { transform: scale(0.96); }
+
+/* Löschen-Button (rot) */
+.btn-danger {
+  flex: 1;
+  background: var(--danger);
+  border: none;
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 13px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.confirm-text {
+  color: var(--text2);
+  font-size: 14px;
+  margin-bottom: 22px;
+  line-height: 1.6;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ─── Safe Area (iPhone Notch) ───────────────────────── */
+/* Wichtig: sorgt dafür dass der FAB nicht hinter der Home-Leiste verschwindet */
+@supports (padding: max(0px)) {
+  body { padding-bottom: max(110px, calc(90px + env(safe-area-inset-bottom))); }
+  .fab { bottom: max(30px, calc(16px + env(safe-area-inset-bottom))); }
+}
