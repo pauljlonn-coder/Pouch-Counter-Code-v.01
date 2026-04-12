@@ -10,8 +10,8 @@
   <link rel="manifest" href="manifest.json">
   <title>PouchCount</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
   <div class="noise"></div>
@@ -19,7 +19,7 @@
   <!-- Header -->
   <header class="header">
     <div class="header-left">
-      <span class="logo">Snus Counter</span>
+      <span class="logo" onclick="selectMenu('today','Heute')">Nic Counter</span>
       <div class="header-info">
         <span class="header-date" id="header-date"></span>
         <span class="header-streak" id="header-streak"></span>
@@ -46,19 +46,11 @@
     </button>
     <div class="dropdown-divider"></div>
     <button class="dropdown-item" onclick="openBackfill();toggleMenu()">
-      <span class="dropdown-icon">◈</span> Vergangenen Tag nachtragen
+      <span class="dropdown-icon">◈</span> Ereignis nachtragen
     </button>
     <button class="dropdown-item" onclick="openSmokeFreeEdit();toggleMenu()">
       <span class="dropdown-icon">◈</span> Rauchfrei-Datum anpassen
     </button>
-    <div class="dropdown-divider"></div>
-    <button class="dropdown-item" onclick="exportData()">
-      <span class="dropdown-icon">◈</span> Daten exportieren
-    </button>
-    <button class="dropdown-item" onclick="triggerImport()">
-      <span class="dropdown-icon">◈</span> Daten importieren
-    </button>
-    <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="importData(this)">
   </div>
   <div class="menu-backdrop" id="menu-backdrop" onclick="toggleMenu()"></div>
 
@@ -259,17 +251,23 @@
   <div class="modal-overlay" id="modal-backfill" onclick="if(event.target===this)closeBackfill()">
     <div class="modal">
       <div class="modal-header">
-        <h3>Tag nachtragen</h3>
+        <h3>Ereignis nachtragen</h3>
         <button class="modal-close" onclick="closeBackfill()">×</button>
       </div>
       <form class="pouch-form" onsubmit="saveBackfill(event)">
-        <label>
-          <span>Datum</span>
-          <input type="date" id="bf-date" required>
-        </label>
+        <div class="form-row" style="gap:10px">
+          <label style="flex:1">
+            <span>Datum</span>
+            <input type="date" id="bf-date" required>
+          </label>
+          <label style="flex:1">
+            <span>Uhrzeit</span>
+            <input type="time" id="bf-time">
+          </label>
+        </div>
         <div id="bf-rows"></div>
         <button type="button" class="btn-add-row" onclick="addBackfillRow()">+ Weitere Sorte</button>
-        <p class="modal-hint" style="margin-top:0;text-align:left">Einträge werden gleichmäßig über den Tag verteilt und fließen in die Statistik ein.</p>
+        <p class="modal-hint" style="margin-top:0;text-align:left">Mit Uhrzeit: Eintrag wird exakt zu dieser Zeit gespeichert. Ohne Uhrzeit: gleichmäßig über den Tag verteilt.</p>
         <div class="form-row">
           <button type="button" class="btn-ghost" onclick="closeBackfill()">Abbrechen</button>
           <button type="submit" class="btn-primary">Eintragen</button>

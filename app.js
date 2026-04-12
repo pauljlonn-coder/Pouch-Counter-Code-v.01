@@ -104,11 +104,15 @@ function selectMenu(tab, label) {
 
 // ─── Backfill (vergangenen Tag nachtragen) ────────────────────────────────────
 function openBackfill() {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
+  const now = new Date();
   const dateInput = document.getElementById('bf-date');
-  dateInput.max = localDateStr(yesterday);
-  dateInput.value = localDateStr(yesterday);
+  dateInput.max = localDateStr(now);
+  dateInput.value = localDateStr(now);
+
+  const timeInput = document.getElementById('bf-time');
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  timeInput.value = `${hh}:${mm}`;
 
   initBackfillRows();
   document.getElementById('modal-backfill').classList.add('open');
@@ -136,9 +140,22 @@ function addBackfillRow() {
   const row = document.createElement('div');
   row.className = 'backfill-row';
   row.innerHTML = `
-    <select class="bf-pouch-sel" required>${backfillPouchOptions()}</select>
-    <input type="number" class="bf-count-inp" placeholder="Anzahl" min="1" max="99" required>
-    <button type="button" class="bf-row-del" onclick="removeBackfillRow(this)" title="Zeile entfernen">×</button>
+    <div class="bf-row-inner">
+      <label class="bf-label">
+        <span>Pouch</span>
+        <select class="bf-pouch-sel" required>
+          <option value="" disabled selected>Pouch</option>
+          ${backfillPouchOptions()}
+        </select>
+      </label>
+      <label class="bf-label">
+        <div class="bf-label-header">
+          <span>Anzahl</span>
+          <button type="button" class="bf-row-del" onclick="removeBackfillRow(this)" title="Zeile entfernen">×</button>
+        </div>
+        <input type="number" class="bf-count-inp" placeholder="–" min="1" max="99" required>
+      </label>
+    </div>
   `;
   container.appendChild(row);
   updateBackfillRowDels();
@@ -161,6 +178,9 @@ function saveBackfill(e) {
   const date = document.getElementById('bf-date').value;
   if (!date) return;
 
+  const timeVal = document.getElementById('bf-time').value;
+  const hasTime = !!timeVal;
+
   const rows = document.querySelectorAll('.backfill-row');
   const entries = [];
   for (const row of rows) {
@@ -171,25 +191,34 @@ function saveBackfill(e) {
   }
   if (entries.length === 0) return;
 
-  const startHour = 8, endHour = 22;
-  const span = (endHour - startHour) * 60;
-
-  // Flat list mit allen Pouches, gemischt über den Tag verteilt
-  const flat = entries.flatMap(({ pouchId, count }) =>
-    Array.from({ length: count }, () => pouchId)
-  );
-  // Verschiedene Sorten gleichmäßig über den Tag mischen
-  flat.sort(() => Math.random() - 0.5);
-
   const [y, mo, d] = date.split('-').map(Number);
-  flat.forEach((pouchId, i) => {
-    const minuteOffset = Math.round((i / Math.max(flat.length - 1, 1)) * span);
-    const h = startHour + Math.floor(minuteOffset / 60);
-    const m = minuteOffset % 60;
-    // Lokale Zeit → toISOString() konvertiert korrekt nach UTC
-    const ts = new Date(y, mo - 1, d, h, m, 0).toISOString();
-    state.log.push({ id: uid(), pouchId, timestamp: ts });
-  });
+
+  if (hasTime) {
+    // Mit Uhrzeit: alle Einträge exakt zu dieser Zeit speichern
+    const [th, tm] = timeVal.split(':').map(Number);
+    const flat = entries.flatMap(({ pouchId, count }) =>
+      Array.from({ length: count }, () => pouchId)
+    );
+    flat.forEach(pouchId => {
+      const ts = new Date(y, mo - 1, d, th, tm, 0).toISOString();
+      state.log.push({ id: uid(), pouchId, timestamp: ts });
+    });
+  } else {
+    // Ohne Uhrzeit: gleichmäßig über den Tag verteilen
+    const startHour = 8, endHour = 22;
+    const span = (endHour - startHour) * 60;
+    const flat = entries.flatMap(({ pouchId, count }) =>
+      Array.from({ length: count }, () => pouchId)
+    );
+    flat.sort(() => Math.random() - 0.5);
+    flat.forEach((pouchId, i) => {
+      const minuteOffset = Math.round((i / Math.max(flat.length - 1, 1)) * span);
+      const h = startHour + Math.floor(minuteOffset / 60);
+      const m = minuteOffset % 60;
+      const ts = new Date(y, mo - 1, d, h, m, 0).toISOString();
+      state.log.push({ id: uid(), pouchId, timestamp: ts });
+    });
+  }
 
   saveState();
   closeBackfill();
