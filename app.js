@@ -10,7 +10,8 @@ const DEFAULT_STATE = {
 let state = loadState();
 let timerInterval = null;
 let selectedColor = '#3b82f6';
-let deleteTargetId = null;
+let deleteTarget = null;    // { type: 'pouch'|'log', id }
+let editingPouchId = null;
 
 // ─── Persistence ─────────────────────────────────────────────────────────────
 function loadState() {
@@ -28,13 +29,25 @@ function saveState() {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Gibt YYYY-MM-DD im lokalen Datum zurück (kein UTC-Versatz)
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr(new Date());
+}
+
+// Parst ein 'YYYY-MM-DD'-String als lokales Datum (nicht UTC)
+function parseLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
 
 function todayLog() {
   const today = todayStr();
-  return state.log.filter(e => e.timestamp.startsWith(today));
+  return state.log.filter(e => localDateStr(new Date(e.timestamp)) === today);
 }
 
 function getPouchById(id) {
@@ -42,7 +55,6 @@ function getPouchById(id) {
 }
 
 function formatTime(ms) {
-  // Timer: zeigt nur Minuten und Stunden, keine Sekunden → ruhigere Anzeige
   if (ms < 0) return '–';
   const totalMin = Math.floor(ms / 60000);
   const h = Math.floor(totalMin / 60);
@@ -50,14 +62,6 @@ function formatTime(ms) {
   if (h > 0) return h + 'h ' + String(m).padStart(2,'0') + 'm';
   if (totalMin < 1) return '< 1 min';
   return m + ' min';
-}
-
-function formatTimeHM(ms) {
-  const totalMin = Math.floor(ms / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m} Minuten`;
 }
 
 function uid() {
@@ -103,17 +107,10 @@ function openBackfill() {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const dateInput = document.getElementById('bf-date');
-  dateInput.max = yesterday.toISOString().slice(0,10);
-  dateInput.value = yesterday.toISOString().slice(0,10);
-  const sel = document.getElementById('bf-pouch');
-  if (state.pouches.length === 0) {
-    sel.innerHTML = '<option value="">Erst Sorten anlegen</option>';
-  } else {
-    sel.innerHTML = state.pouches.map(p =>
-      '<option value="' + p.id + '">' + p.name + ' (' + p.nicotine + ' mg)</option>'
-    ).join('');
-  }
-  document.getElementById('bf-count').value = '';
+  dateInput.max = localDateStr(yesterday);
+  dateInput.value = localDateStr(yesterday);
+
+  initBackfillRows();
   document.getElementById('modal-backfill').classList.add('open');
 }
 
@@ -121,21 +118,79 @@ function closeBackfill() {
   document.getElementById('modal-backfill').classList.remove('open');
 }
 
+function initBackfillRows() {
+  const container = document.getElementById('bf-rows');
+  container.innerHTML = '';
+  addBackfillRow();
+}
+
+function backfillPouchOptions() {
+  if (state.pouches.length === 0) return '<option value="">Erst Sorten anlegen</option>';
+  return state.pouches.map(p =>
+    `<option value="${p.id}">${p.name} (${p.nicotine} mg)</option>`
+  ).join('');
+}
+
+function addBackfillRow() {
+  const container = document.getElementById('bf-rows');
+  const row = document.createElement('div');
+  row.className = 'backfill-row';
+  row.innerHTML = `
+    <select class="bf-pouch-sel" required>${backfillPouchOptions()}</select>
+    <input type="number" class="bf-count-inp" placeholder="Anzahl" min="1" max="99" required>
+    <button type="button" class="bf-row-del" onclick="removeBackfillRow(this)" title="Zeile entfernen">×</button>
+  `;
+  container.appendChild(row);
+  updateBackfillRowDels();
+}
+
+function removeBackfillRow(btn) {
+  btn.closest('.backfill-row').remove();
+  updateBackfillRowDels();
+}
+
+function updateBackfillRowDels() {
+  const rows = document.querySelectorAll('.backfill-row');
+  rows.forEach(r => {
+    r.querySelector('.bf-row-del').style.visibility = rows.length > 1 ? 'visible' : 'hidden';
+  });
+}
+
 function saveBackfill(e) {
   e.preventDefault();
   const date = document.getElementById('bf-date').value;
-  const pouchId = document.getElementById('bf-pouch').value;
-  const count = parseInt(document.getElementById('bf-count').value);
-  if (!date || !pouchId || isNaN(count) || count < 1) return;
+  if (!date) return;
+
+  const rows = document.querySelectorAll('.backfill-row');
+  const entries = [];
+  for (const row of rows) {
+    const pouchId = row.querySelector('.bf-pouch-sel').value;
+    const count = parseInt(row.querySelector('.bf-count-inp').value);
+    if (!pouchId || isNaN(count) || count < 1) continue;
+    entries.push({ pouchId, count });
+  }
+  if (entries.length === 0) return;
+
   const startHour = 8, endHour = 22;
   const span = (endHour - startHour) * 60;
-  for (let i = 0; i < count; i++) {
-    const minuteOffset = Math.round((i / Math.max(count - 1, 1)) * span);
+
+  // Flat list mit allen Pouches, gemischt über den Tag verteilt
+  const flat = entries.flatMap(({ pouchId, count }) =>
+    Array.from({ length: count }, () => pouchId)
+  );
+  // Verschiedene Sorten gleichmäßig über den Tag mischen
+  flat.sort(() => Math.random() - 0.5);
+
+  const [y, mo, d] = date.split('-').map(Number);
+  flat.forEach((pouchId, i) => {
+    const minuteOffset = Math.round((i / Math.max(flat.length - 1, 1)) * span);
     const h = startHour + Math.floor(minuteOffset / 60);
     const m = minuteOffset % 60;
-    const ts = date + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00.000Z';
+    // Lokale Zeit → toISOString() konvertiert korrekt nach UTC
+    const ts = new Date(y, mo - 1, d, h, m, 0).toISOString();
     state.log.push({ id: uid(), pouchId, timestamp: ts });
-  }
+  });
+
   saveState();
   closeBackfill();
   renderAll();
@@ -152,7 +207,7 @@ function renderHeader() {
 
   if (state.smokeFreeStart) {
     const daysSince = Math.floor((Date.now() - new Date(state.smokeFreeStart)) / 86400000);
-    document.getElementById('header-streak').textContent = ` ${daysSince} Tage) rauchfrei`;
+    document.getElementById('header-streak').textContent = `${daysSince} Tage rauchfrei`;
   }
 }
 
@@ -163,7 +218,7 @@ function renderRing() {
 
   // Äußerer Ring: Pouches
   const limit = state.dayLimit;
-  const circOuter = 2 * Math.PI * 84; // r=84
+  const circOuter = 2 * Math.PI * 84;
   const pctOuter = Math.min(count / limit, 1);
   const ring = document.getElementById('ring-fill');
   ring.style.strokeDasharray = circOuter;
@@ -179,7 +234,7 @@ function renderRing() {
     return sum + (p ? p.nicotine : 0);
   }, 0);
   const nicLimit = state.nicLimit || 100;
-  const circInner = 2 * Math.PI * 64; // r=64
+  const circInner = 2 * Math.PI * 64;
   const pctInner = Math.min(nicToday / nicLimit, 1);
   const ringInner = document.getElementById('ring-fill-inner');
   ringInner.style.strokeDasharray = circInner;
@@ -188,7 +243,6 @@ function renderRing() {
   ringInner.classList.remove('warn','danger');
   if (pctInner >= 1) ringInner.classList.add('warn');
 
-  // Texte aktualisieren
   document.getElementById('today-count').textContent = count;
   document.getElementById('ring-limit').textContent = limit;
   document.getElementById('limit-display').textContent = limit;
@@ -253,16 +307,17 @@ function renderTodayLog() {
           <div class="log-meta">${pouch.nicotine} mg Nikotin</div>
         </div>
         <span class="log-time">${hm}</span>
-        <button class="log-del" onclick="removeLogEntry('${entry.id}')" title="Löschen">×</button>
+        <button class="log-del" onclick="askDeleteLogEntry('${entry.id}')" title="Löschen">×</button>
       </div>
     `;
   }).join('');
 }
 
-function removeLogEntry(id) {
-  state.log = state.log.filter(e => e.id !== id);
-  saveState();
-  renderAll();
+function askDeleteLogEntry(id) {
+  deleteTarget = { type: 'log', id };
+  document.getElementById('confirm-title').textContent = 'Eintrag löschen?';
+  document.getElementById('confirm-text').textContent = 'Diesen Eintrag aus dem heutigen Protokoll entfernen?';
+  document.getElementById('modal-confirm').classList.add('open');
 }
 
 // ─── Pouches Tab ──────────────────────────────────────────────────────────────
@@ -286,6 +341,7 @@ function renderPouches() {
           <div class="pouch-card-meta">${p.nicotine} mg · heute: ${todayCount} · gesamt: ${totalCount}</div>
         </div>
         <div class="pouch-card-actions">
+          <button class="pouch-edit-btn" onclick="openAddPouch('${p.id}')" title="Sorte bearbeiten">✎</button>
           <button class="pouch-del-btn" onclick="askDelete('${p.id}')" title="Sorte löschen">🗑</button>
           <button class="pouch-add-btn" style="border-color:${p.color};color:${p.color}" onclick="quickAddPouch('${p.id}')">+</button>
         </div>
@@ -322,15 +378,23 @@ function quickAddPouch(pouchId) {
   state.log.push(entry);
   saveState();
   renderAll();
-  // haptic feedback on iOS
   if (navigator.vibrate) navigator.vibrate(10);
 }
 
-// ─── Add Pouch Type Modal ─────────────────────────────────────────────────────
-function openAddPouch() {
-  document.getElementById('p-name').value = '';
-  document.getElementById('p-nic').value = '';
-  selectedColor = '#3b82f6';
+// ─── Add / Edit Pouch Type Modal ──────────────────────────────────────────────
+function openAddPouch(editId) {
+  editingPouchId = editId || null;
+  const isEdit = !!editingPouchId;
+  const p = isEdit ? getPouchById(editingPouchId) : null;
+
+  document.getElementById('modal-add-pouch').querySelector('h3').textContent =
+    isEdit ? 'Sorte bearbeiten' : 'Neue Sorte';
+  document.getElementById('add-pouch-submit').textContent =
+    isEdit ? 'Aktualisieren' : 'Speichern';
+
+  document.getElementById('p-name').value = p ? p.name : '';
+  document.getElementById('p-nic').value = p ? p.nicotine : '';
+  selectedColor = p ? p.color : '#3b82f6';
   document.querySelectorAll('.color-dot').forEach(d => {
     d.classList.toggle('active', d.dataset.color === selectedColor);
   });
@@ -339,6 +403,7 @@ function openAddPouch() {
 }
 
 function closeAddPouch() {
+  editingPouchId = null;
   document.getElementById('modal-add-pouch').classList.remove('open');
 }
 
@@ -354,7 +419,12 @@ function savePouch(e) {
   const nicotine = parseFloat(document.getElementById('p-nic').value);
   if (!name || isNaN(nicotine)) return;
 
-  state.pouches.push({ id: uid(), name, nicotine, color: selectedColor });
+  if (editingPouchId) {
+    const p = getPouchById(editingPouchId);
+    if (p) { p.name = name; p.nicotine = nicotine; p.color = selectedColor; }
+  } else {
+    state.pouches.push({ id: uid(), name, nicotine, color: selectedColor });
+  }
   saveState();
   closeAddPouch();
   renderPouches();
@@ -364,63 +434,72 @@ function savePouch(e) {
 function askDelete(id) {
   const p = getPouchById(id);
   if (!p) return;
-  deleteTargetId = id;
+  deleteTarget = { type: 'pouch', id };
+  document.getElementById('confirm-title').textContent = 'Sorte löschen?';
   document.getElementById('confirm-text').textContent =
     `"${p.name}" löschen? Alle Einträge dieser Sorte bleiben in der Statistik erhalten.`;
   document.getElementById('modal-confirm').classList.add('open');
 }
 
 function closeConfirm() {
-  deleteTargetId = null;
+  deleteTarget = null;
   document.getElementById('modal-confirm').classList.remove('open');
 }
 
 function confirmDelete() {
-  if (!deleteTargetId) return;
-  state.pouches = state.pouches.filter(p => p.id !== deleteTargetId);
-  saveState();
-  closeConfirm();
-  renderPouches();
+  if (!deleteTarget) return;
+  if (deleteTarget.type === 'pouch') {
+    state.pouches = state.pouches.filter(p => p.id !== deleteTarget.id);
+    saveState();
+    closeConfirm();
+    renderPouches();
+  } else if (deleteTarget.type === 'log') {
+    state.log = state.log.filter(e => e.id !== deleteTarget.id);
+    saveState();
+    closeConfirm();
+    renderAll();
+  }
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 function renderStats() {
-  // Group log by day
+  // Gruppierung nach lokalem Datum (kein UTC-Versatz)
   const byDay = {};
   state.log.forEach(e => {
-    const day = e.timestamp.slice(0,10);
+    const day = localDateStr(new Date(e.timestamp));
     if (!byDay[day]) byDay[day] = [];
     byDay[day].push(e);
   });
 
   const days = Object.keys(byDay).sort();
-  const numDays = days.length || 1;
   const totalPouches = state.log.length;
   const totalNic = state.log.reduce((sum,e) => {
     const p = getPouchById(e.pouchId);
     return sum + (p ? p.nicotine : 0);
   }, 0);
 
-  const avgPouches = (totalPouches / numDays).toFixed(1);
-  const avgNic = (totalNic / numDays).toFixed(1);
+  // Ø über gesamte Zeitspanne (erste Nutzung bis heute), nicht nur aktive Tage
+  const numDaysWithEntries = days.length || 1;
+  const numDaysRange = days.length === 0 ? 1
+    : Math.floor((parseLocalDate(todayStr()) - parseLocalDate(days[0])) / 86400000) + 1;
 
-  document.getElementById('stat-avg-pouches').textContent = avgPouches;
-  document.getElementById('stat-avg-nic').textContent = `${avgNic} mg`;
+  document.getElementById('stat-avg-pouches').textContent = (totalPouches / numDaysRange).toFixed(1);
+  document.getElementById('stat-avg-nic').textContent = `${(totalNic / numDaysRange).toFixed(1)} mg`;
   document.getElementById('stat-total').textContent = totalPouches;
-  document.getElementById('stat-days').textContent = numDays;
+  document.getElementById('stat-days').textContent = numDaysWithEntries;
 
-  // Best day
+  // Bester Tag
   let bestDay = null, bestCount = Infinity;
   days.forEach(d => {
     if (byDay[d].length < bestCount) { bestCount = byDay[d].length; bestDay = d; }
   });
   if (bestDay) {
-    const bd = new Date(bestDay);
+    const bd = parseLocalDate(bestDay);
     document.getElementById('stat-best-day').textContent =
       `${bestCount} Pouches (${bd.toLocaleDateString('de-DE',{day:'numeric',month:'short'})})`;
   }
 
-  // Smoke free
+  // Rauchfrei
   if (state.smokeFreeStart) {
     const ms = Date.now() - new Date(state.smokeFreeStart).getTime();
     const d = Math.floor(ms / 86400000);
@@ -438,17 +517,17 @@ function renderBarChart(byDay) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    last7.push(d.toISOString().slice(0,10));
+    last7.push(localDateStr(d));
   }
 
   const dayNames = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 
-  // Pouch bar
+  // Pouch-Balken
   const maxCount = Math.max(...last7.map(d => (byDay[d]||[]).length), 1);
   document.getElementById('bar-chart').innerHTML = last7.map(d => {
     const count = (byDay[d]||[]).length;
     const pct = count / maxCount;
-    const dayName = dayNames[new Date(d).getDay()];
+    const dayName = dayNames[parseLocalDate(d).getDay()];
     const isToday = d === today;
     return `
       <div class="bar-col">
@@ -459,10 +538,10 @@ function renderBarChart(byDay) {
     `;
   }).join('');
 
-  // Nicotine bar
+  // Nikotin-Balken
   const nicByDay = {};
   state.log.forEach(e => {
-    const day = e.timestamp.slice(0,10);
+    const day = localDateStr(new Date(e.timestamp));
     const p = getPouchById(e.pouchId);
     nicByDay[day] = (nicByDay[day]||0) + (p?p.nicotine:0);
   });
@@ -470,7 +549,7 @@ function renderBarChart(byDay) {
   document.getElementById('nic-chart').innerHTML = last7.map(d => {
     const nic = nicByDay[d]||0;
     const pct = nic / maxNic;
-    const dayName = dayNames[new Date(d).getDay()];
+    const dayName = dayNames[parseLocalDate(d).getDay()];
     const isToday = d === today;
     return `
       <div class="bar-col">
@@ -482,15 +561,14 @@ function renderBarChart(byDay) {
   }).join('');
 }
 
-// ─── Rauchfrei-Datum bearbeiten ──────────────────────────────────────────────
+// ─── Rauchfrei-Datum bearbeiten ───────────────────────────────────────────────
 function openSmokeFreeEdit() {
   const input = document.getElementById('sf-date-input');
-  // Aktuelles Datum vorausfüllen (oder heute als Fallback)
   const current = state.smokeFreeStart
-    ? new Date(state.smokeFreeStart).toISOString().slice(0,10)
-    : new Date().toISOString().slice(0,10);
+    ? localDateStr(new Date(state.smokeFreeStart))
+    : todayStr();
   input.value = current;
-  input.max = new Date().toISOString().slice(0,10); // nicht in der Zukunft
+  input.max = todayStr();
   document.getElementById('modal-smokefree').classList.add('open');
 }
 
@@ -502,11 +580,53 @@ function saveSmokeFreeDate(e) {
   e.preventDefault();
   const val = document.getElementById('sf-date-input').value;
   if (!val) return;
-  // Datum auf Mitternacht setzen
-  state.smokeFreeStart = val + 'T00:00:00.000Z';
+  // Lokale Mitternacht speichern
+  const [y, m, d] = val.split('-').map(Number);
+  state.smokeFreeStart = new Date(y, m - 1, d, 0, 0, 0).toISOString();
   saveState();
   closeSmokeFreeEdit();
   renderAll();
+}
+
+// ─── Export / Import ──────────────────────────────────────────────────────────
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pouchcount_backup_${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toggleMenu();
+}
+
+function triggerImport() {
+  document.getElementById('import-file-input').click();
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (!imported.log || !imported.pouches) {
+        alert('Ungültige Backup-Datei.');
+        return;
+      }
+      state = { ...DEFAULT_STATE, ...imported };
+      saveState();
+      renderAll();
+      if (document.getElementById('tab-stats').classList.contains('active')) renderStats();
+      alert('Daten erfolgreich importiert!');
+    } catch {
+      alert('Fehler beim Lesen der Datei.');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+  toggleMenu();
 }
 
 // ─── Render All ───────────────────────────────────────────────────────────────
@@ -536,7 +656,7 @@ renderAll();
 startTimer();
 scheduleMidnightReset();
 
-// Pre-populate with sample pouches if none exist
+// Beispiel-Sorten wenn noch keine vorhanden
 if (state.pouches.length === 0) {
   state.pouches = [
     { id: uid(), name: 'Velo Freeze', nicotine: 10, color: '#3b82f6' },

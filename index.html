@@ -51,6 +51,14 @@
     <button class="dropdown-item" onclick="openSmokeFreeEdit();toggleMenu()">
       <span class="dropdown-icon">◈</span> Rauchfrei-Datum anpassen
     </button>
+    <div class="dropdown-divider"></div>
+    <button class="dropdown-item" onclick="exportData()">
+      <span class="dropdown-icon">◈</span> Daten exportieren
+    </button>
+    <button class="dropdown-item" onclick="triggerImport()">
+      <span class="dropdown-icon">◈</span> Daten importieren
+    </button>
+    <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="importData(this)">
   </div>
   <div class="menu-backdrop" id="menu-backdrop" onclick="toggleMenu()"></div>
 
@@ -226,7 +234,7 @@
         </label>
         <div class="form-row">
           <button type="button" class="btn-ghost" onclick="closeAddPouch()">Abbrechen</button>
-          <button type="submit" class="btn-primary">Speichern</button>
+          <button type="submit" id="add-pouch-submit" class="btn-primary">Speichern</button>
         </div>
       </form>
     </div>
@@ -236,7 +244,7 @@
   <div class="modal-overlay" id="modal-confirm" onclick="if(event.target===this)closeConfirm()">
     <div class="modal modal-sm">
       <div class="modal-header">
-        <h3>Sorte löschen?</h3>
+        <h3 id="confirm-title">Sorte löschen?</h3>
         <button class="modal-close" onclick="closeConfirm()">×</button>
       </div>
       <p class="confirm-text" id="confirm-text"></p>
@@ -259,15 +267,9 @@
           <span>Datum</span>
           <input type="date" id="bf-date" required>
         </label>
-        <label>
-          <span>Sorte</span>
-          <select id="bf-pouch" required></select>
-        </label>
-        <label>
-          <span>Anzahl Pouches</span>
-          <input type="number" id="bf-count" placeholder="z.B. 8" min="1" max="99" required>
-        </label>
-        <p class="modal-hint" style="margin-top:0;text-align:left">Eintraege werden gleichmaessig ueber den Tag verteilt und fliessen in die Statistik ein.</p>
+        <div id="bf-rows"></div>
+        <button type="button" class="btn-add-row" onclick="addBackfillRow()">+ Weitere Sorte</button>
+        <p class="modal-hint" style="margin-top:0;text-align:left">Einträge werden gleichmäßig über den Tag verteilt und fließen in die Statistik ein.</p>
         <div class="form-row">
           <button type="button" class="btn-ghost" onclick="closeBackfill()">Abbrechen</button>
           <button type="submit" class="btn-primary">Eintragen</button>
