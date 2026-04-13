@@ -99,7 +99,10 @@ function selectMenu(tab, label) {
     el.classList.toggle('active', el.dataset.tab === tab);
   });
   document.getElementById('header-tab-label').textContent = label;
-  toggleMenu();
+  // Menü immer schließen (nicht togglen)
+  document.getElementById('hamburger-btn').classList.remove('open');
+  document.getElementById('dropdown-menu').classList.remove('open');
+  document.getElementById('menu-backdrop').classList.remove('open');
 }
 
 // ─── Backfill (vergangenen Tag nachtragen) ────────────────────────────────────
@@ -241,9 +244,20 @@ function renderHeader() {
 }
 
 // ─── Progress Ring (doppelt) ──────────────────────────────────────────────────
+function absorptionFactor(entry) {
+  if (!entry.removedAt) return 1;
+  const ms = new Date(entry.removedAt) - new Date(entry.timestamp);
+  return Math.min(ms / (30 * 60 * 1000), 1);
+}
+
 function renderRing() {
   const tl = todayLog();
-  const count = tl.length;
+
+  // Pouches-Anzahl mit partieller Absorption
+  const count = tl.reduce((sum, e) => sum + absorptionFactor(e), 0);
+  const countDisplay = count === 0 ? '0'
+    : count % 1 < 0.05 ? Math.round(count).toString()
+    : count.toFixed(1);
 
   // Äußerer Ring: Pouches
   const limit = state.dayLimit;
@@ -257,10 +271,10 @@ function renderRing() {
   if (pctOuter >= 1) ring.classList.add('danger');
   else if (pctOuter >= 0.75) ring.classList.add('warn');
 
-  // Innerer Ring: Nikotin
+  // Innerer Ring: Nikotin mit partieller Absorption
   const nicToday = tl.reduce((sum, e) => {
     const p = getPouchById(e.pouchId);
-    return sum + (p ? p.nicotine : 0);
+    return sum + (p ? p.nicotine * absorptionFactor(e) : 0);
   }, 0);
   const nicLimit = state.nicLimit || 100;
   const circInner = 2 * Math.PI * 64;
@@ -272,7 +286,7 @@ function renderRing() {
   ringInner.classList.remove('warn','danger');
   if (pctInner >= 1) ringInner.classList.add('warn');
 
-  document.getElementById('today-count').textContent = count;
+  document.getElementById('today-count').textContent = countDisplay;
   document.getElementById('ring-limit').textContent = limit;
   document.getElementById('limit-display').textContent = limit;
   document.getElementById('ring-nic-val').textContent = nicToday.toFixed(1).replace('.0','') + ' mg';
@@ -301,9 +315,11 @@ function startTimer() {
 
 function tickTimer() {
   const tl = todayLog();
+  const btn = document.getElementById('pouch-raus-btn');
   if (tl.length === 0) {
     document.getElementById('timer-display').textContent = '–';
     document.getElementById('timer-nicotine').textContent = '';
+    btn.style.display = 'none';
     return;
   }
   const last = tl.reduce((a,b) => a.timestamp > b.timestamp ? a : b);
@@ -313,6 +329,23 @@ function tickTimer() {
   if (pouch) {
     document.getElementById('timer-nicotine').textContent = `${pouch.name} · ${pouch.nicotine} mg Nikotin`;
   }
+  // Button nur zeigen wenn letzte Pouch noch nicht rausgenommen wurde
+  btn.style.display = last.removedAt ? 'none' : 'inline-block';
+}
+
+// ─── Pouch raus ──────────────────────────────────────────────────────────────
+function pouchRaus() {
+  const tl = todayLog();
+  if (tl.length === 0) return;
+  const active = tl.filter(e => !e.removedAt);
+  if (active.length === 0) return;
+  const last = active.reduce((a, b) => a.timestamp > b.timestamp ? a : b);
+  const entry = state.log.find(e => e.id === last.id);
+  entry.removedAt = new Date().toISOString();
+  saveState();
+  renderRing();
+  renderTodayLog();
+  tickTimer();
 }
 
 // ─── Today Log ────────────────────────────────────────────────────────────────
@@ -328,12 +361,28 @@ function renderTodayLog() {
     if (!pouch) return '';
     const time = new Date(entry.timestamp);
     const hm = `${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}`;
+
+    // Absorbierte mg berechnen
+    const factor = absorptionFactor(entry);
+    const absorbed = pouch.nicotine * factor;
+    const absorbedStr = absorbed % 1 < 0.05
+      ? Math.round(absorbed) + ' mg'
+      : absorbed.toFixed(1) + ' mg';
+
+    // Dauer anzeigen wenn rausgenommen
+    let durationStr = '';
+    if (entry.removedAt) {
+      const mins = Math.round((new Date(entry.removedAt) - new Date(entry.timestamp)) / 60000);
+      durationStr = ` · ${mins} min`;
+    }
+
+    const removed = !!entry.removedAt;
     return `
-      <div class="log-item">
-        <span class="log-dot" style="background:${pouch.color}"></span>
+      <div class="log-item${removed ? ' log-item-removed' : ''}">
+        <span class="log-dot" style="background:${pouch.color};opacity:${removed ? 0.5 : 1}"></span>
         <div class="log-info">
-          <div class="log-name">${pouch.name}</div>
-          <div class="log-meta">${pouch.nicotine} mg Nikotin</div>
+          <div class="log-name" style="opacity:${removed ? 0.6 : 1}">${pouch.name}</div>
+          <div class="log-meta">${absorbedStr} Nikotin${durationStr}</div>
         </div>
         <span class="log-time">${hm}</span>
         <button class="log-del" onclick="askDeleteLogEntry('${entry.id}')" title="Löschen">×</button>
@@ -501,11 +550,25 @@ function renderStats() {
   });
 
   const days = Object.keys(byDay).sort();
-  const totalPouches = state.log.length;
-  const totalNic = state.log.reduce((sum,e) => {
+  const totalPouches = state.log.reduce((sum, e) => sum + absorptionFactor(e), 0);
+  const totalNic = state.log.reduce((sum, e) => {
     const p = getPouchById(e.pouchId);
-    return sum + (p ? p.nicotine : 0);
+    return sum + (p ? p.nicotine * absorptionFactor(e) : 0);
   }, 0);
+
+  // Ø Tragedauer (nur Einträge mit removedAt)
+  const removed = state.log.filter(e => e.removedAt);
+  const avgDurationEl = document.getElementById('stat-avg-duration');
+  if (removed.length > 0) {
+    const avgMs = removed.reduce((sum, e) =>
+      sum + (new Date(e.removedAt) - new Date(e.timestamp)), 0) / removed.length;
+    const avgMin = Math.round(avgMs / 60000);
+    avgDurationEl.textContent = avgMin >= 60
+      ? `${Math.floor(avgMin/60)}h ${avgMin%60}min`
+      : `${avgMin} min`;
+  } else {
+    avgDurationEl.textContent = '–';
+  }
 
   // Ø über gesamte Zeitspanne (erste Nutzung bis heute), nicht nur aktive Tage
   const numDaysWithEntries = days.length || 1;
@@ -679,6 +742,15 @@ function scheduleMidnightReset() {
     scheduleMidnightReset();
   }, ms);
 }
+
+// ─── Keyboard scroll fix (iOS: Eingabefeld nicht hinter Tastatur verstecken) ──
+document.querySelectorAll('.modal').forEach(modal => {
+  modal.addEventListener('focusin', e => {
+    if (e.target.matches('input, select, textarea')) {
+      setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+    }
+  });
+});
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 renderAll();

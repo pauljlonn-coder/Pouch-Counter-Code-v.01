@@ -11,7 +11,7 @@
   <title>PouchCount</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
   <div class="noise"></div>
@@ -105,6 +105,7 @@
       <div class="timer-label">letzte Pouch vor</div>
       <div class="timer-display" id="timer-display">–</div>
       <div class="timer-nicotine" id="timer-nicotine"></div>
+      <button class="pouch-raus-btn" id="pouch-raus-btn" onclick="pouchRaus()" style="display:none">Pouch raus</button>
     </section>
 
     <!-- Today log -->
@@ -152,13 +153,17 @@
           <span class="stat-val" id="stat-days">0</span>
           <span class="stat-key">Tage getrackt</span>
         </div>
+        <div class="stat-card">
+          <span class="stat-val" id="stat-avg-duration">–</span>
+          <span class="stat-key">Ø Tragedauer</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-val" id="stat-best-day">–</span>
+          <span class="stat-key">Bester Tag</span>
+        </div>
         <div class="stat-card wide">
           <span class="stat-val" id="stat-smoke-free">0 Tage</span>
           <span class="stat-key">Rauchfrei seit</span>
-        </div>
-        <div class="stat-card wide">
-          <span class="stat-val" id="stat-best-day">–</span>
-          <span class="stat-key">Bester Tag (wenigste Pouches)</span>
         </div>
       </div>
 
